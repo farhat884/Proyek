@@ -12,6 +12,40 @@ from clv_calculator import detect_churn_events
 st.set_page_config(page_title="Netflix Review Sentiment Analysis", layout="wide")
 
 # =====================================================================
+# FUNGSI PEMBANTU: DETEKSI SENTIMEN OTOMATIS
+# =====================================================================
+def predict_sentiment_auto(text):
+    """
+    Fungsi untuk mendeteksi sentimen secara otomatis berdasarkan kata kunci.
+    Dapat disesuaikan atau diganti dengan model ML/NLP pilihanmu.
+    """
+    if not isinstance(text, str) or not text.strip():
+        return "neutral"
+    
+    text_lower = text.lower()
+    
+    # Kata kunci positif & negatif (Bahasa Indonesia & Inggris)
+    pos_words = {
+        'good', 'great', 'love', 'best', 'awesome', 'amazing', 'excellent', 'like', 'fast', 'smooth',
+        'suka', 'bagus', 'keren', 'mantap', 'puas', 'recommended', 'juara', 'baik', 'lancar', 'murah'
+    }
+    neg_words = {
+        'bad', 'worst', 'hate', 'terrible', 'horrible', 'poor', 'slow', 'crash', 'expensive', 'freeze',
+        'jelek', 'buruk', 'rugi', 'kecewa', 'error', 'lambat', 'mahal', 'parah', 'rusak', 'lemot', 'batal'
+    }
+    
+    pos_score = sum(1 for word in pos_words if word in text_lower)
+    neg_score = sum(1 for word in neg_words if word in text_lower)
+    
+    if pos_score > neg_score:
+        return "positive"
+    elif neg_score > pos_score:
+        return "negative"
+    else:
+        return "neutral"
+
+
+# =====================================================================
 # FUNGSI PEMBANTU: TAMPILKAN DATASET TERPISAH (POSITIF, NETRAL, NEGATIF)
 # =====================================================================
 def display_separated_datasets(df_input, title_prefix=""):
@@ -74,10 +108,10 @@ st.sidebar.title("⚙️ Pengelolaan Data & Navigasi")
 # Indikator Jumlah Data Saat Ini
 st.sidebar.metric("Total Data Terdaftar", f"{len(st.session_state.df_master):,} ulasan")
 
-# --- A. UNGGAH FILE (APPEND / GABUNG DATA) ---
+# --- A. UNGGAH FILE (AUTOMATIC SENTIMENT ANALYSIS) ---
 st.sidebar.subheader("📁 Tambah Data via File")
 uploaded_file = st.sidebar.file_uploader(
-    "Unggah Excel / CSV untuk menggabungkan data:", 
+    "Unggah Excel / CSV (Sentimen dihitung otomatis):", 
     type=["csv", "xlsx", "xls"]
 )
 
@@ -89,37 +123,51 @@ if uploaded_file is not None:
             else:
                 new_data = pd.read_excel(uploaded_file)
             
+            # Klasifikasi otomatis jika kolom 'sentiment' belum ada / kosong
+            if 'content' in new_data.columns:
+                if 'sentiment' not in new_data.columns:
+                    new_data['sentiment'] = new_data['content'].apply(predict_sentiment_auto)
+                else:
+                    # Mengisi nilai null pada kolom sentiment jika ada
+                    new_data['sentiment'] = new_data.apply(
+                        lambda row: predict_sentiment_auto(row['content']) if pd.isna(row['sentiment']) else row['sentiment'], 
+                        axis=1
+                    )
+            
             # Penggabungan data (Concat/Append)
             st.session_state.df_master = pd.concat([st.session_state.df_master, new_data], ignore_index=True)
-            st.sidebar.success(f"Berhasil menambahkan {len(new_data):,} data baru!")
+            st.sidebar.success(f"Berhasil menambahkan & mengklasifikasi {len(new_data):,} data baru!")
             st.rerun()
         except Exception as e:
             st.sidebar.error(f"Gagal menggabungkan data: {e}")
 
-# --- B. INPUT MANUAL (APPEND 1 DATA) ---
+# --- B. INPUT MANUAL (AUTOMATIC SENTIMENT) ---
 with st.sidebar.expander("➕ Tambah 1 Review Manual"):
     with st.form("add_single_review_form"):
         new_user = st.text_input("Nama User", "Pengguna Baru")
         new_content = st.text_area("Isi Ulasan", "")
-        new_sentiment = st.selectbox("Sentimen", ["positive", "neutral", "negative"])
         new_date = st.date_input("Tanggal")
         submit_btn = st.form_submit_button("Tambah ke Dataset")
         
         if submit_btn:
-            # Pastikan tanggal langsung dikonversi ke format pd.Timestamp
-            parsed_date = pd.to_datetime(new_date)
-            
-            new_row = pd.DataFrame({
-                'userName': [new_user],
-                'content': [new_content],
-                'sentiment': [new_sentiment],
-                'at': [parsed_date]
-            })
-            
-            # Penggabungan data
-            st.session_state.df_master = pd.concat([st.session_state.df_master, new_row], ignore_index=True)
-            st.sidebar.success("Review berhasil ditambahkan!")
-            st.rerun()
+            if not new_content.strip():
+                st.sidebar.warning("⚠️ Isi ulasan tidak boleh kosong!")
+            else:
+                # 🤖 Deteksi sentimen secara otomatis dari teks ulasan
+                auto_sentiment = predict_sentiment_auto(new_content)
+                parsed_date = pd.to_datetime(new_date)
+                
+                new_row = pd.DataFrame({
+                    'userName': [new_user],
+                    'content': [new_content],
+                    'sentiment': [auto_sentiment],
+                    'at': [parsed_date]
+                })
+                
+                # Penggabungan data
+                st.session_state.df_master = pd.concat([st.session_state.df_master, new_row], ignore_index=True)
+                st.sidebar.success(f"Ulasan berhasil ditambahkan! Sentimen terdeteksi: **{auto_sentiment.upper()}**")
+                st.rerun()
 
 # --- C. RESET DATASET (OPSIONAL) ---
 if st.sidebar.button("🔄 Reset ke Data Bawaan Awal"):
