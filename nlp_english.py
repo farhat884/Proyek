@@ -9,7 +9,9 @@ from tqdm import tqdm
 
 # Download resource NLTK yang diperlukan
 nltk.download('punkt')
+nltk.download('punkt_tab')
 nltk.download('stopwords')
+
 
 # Tqdm untuk progress bar
 tqdm.pandas()
