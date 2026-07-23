@@ -101,14 +101,25 @@ if 'df_master' not in st.session_state:
         st.session_state.df_master = pd.DataFrame(columns=['userName', 'content', 'sentiment', 'at'])
 
 # =====================================================================
-# 2. PENGELOLAAN DATA TERPUSAT (SATU TEMPAT DI SIDEBAR)
+# 2. PENGELOLAAN DATA TERPUSAT (NAVIGASI DI ATAS SIDEBAR)
 # =====================================================================
-st.sidebar.title("⚙️ Pengelolaan Data & Navigasi")
+st.sidebar.title("⚙️ Panel Kontrol & Navigasi")
+
+# --- A. NAVIGASI HALAMAN (DIPINDAHKAN KE ATAS) ---
+page = st.sidebar.selectbox("📌 Pilih Halaman", [
+    "Ringkasan Data", 
+    "Pencarian Kata", 
+    "Visualisasi Model", 
+    "Analisis Kata (WordCloud & Top Words)",
+    "Analisis CLV & Loyalitas"
+])
+
+st.sidebar.markdown("---")
 
 # Indikator Jumlah Data Saat Ini
 st.sidebar.metric("Total Data Terdaftar", f"{len(st.session_state.df_master):,} ulasan")
 
-# --- A. UNGGAH FILE (AUTOMATIC SENTIMENT ANALYSIS) ---
+# --- B. UNGGAH FILE (AUTOMATIC SENTIMENT ANALYSIS) ---
 st.sidebar.subheader("📁 Tambah Data via File")
 uploaded_file = st.sidebar.file_uploader(
     "Unggah Excel / CSV (Sentimen dihitung otomatis):", 
@@ -141,7 +152,7 @@ if uploaded_file is not None:
         except Exception as e:
             st.sidebar.error(f"Gagal menggabungkan data: {e}")
 
-# --- B. INPUT MANUAL (AUTOMATIC SENTIMENT) ---
+# --- C. INPUT MANUAL (AUTOMATIC SENTIMENT) ---
 with st.sidebar.expander("➕ Tambah 1 Review Manual"):
     with st.form("add_single_review_form"):
         new_user = st.text_input("Nama User", "Pengguna Baru")
@@ -169,7 +180,7 @@ with st.sidebar.expander("➕ Tambah 1 Review Manual"):
                 st.sidebar.success(f"Ulasan berhasil ditambahkan! Sentimen terdeteksi: **{auto_sentiment.upper()}**")
                 st.rerun()
 
-# --- C. RESET DATASET (OPSIONAL) ---
+# --- D. RESET DATASET (OPSIONAL) ---
 if st.sidebar.button("🔄 Reset ke Data Bawaan Awal"):
     try:
         st.session_state.df_master = pd.read_csv("netflix_reviews_labeled.csv")
@@ -177,17 +188,6 @@ if st.sidebar.button("🔄 Reset ke Data Bawaan Awal"):
         st.rerun()
     except Exception as e:
         st.sidebar.error(f"Gagal mereset data: {e}")
-
-st.sidebar.markdown("---")
-
-# --- NAVIGASI HALAMAN ---
-page = st.sidebar.selectbox("Pilih Halaman", [
-    "Ringkasan Data", 
-    "Pencarian Kata", 
-    "Visualisasi Model", 
-    "Analisis Kata (WordCloud & Top Words)",
-    "Analisis CLV & Loyalitas"
-])
 
 # =====================================================================
 # 3. PREPROCESSING UTAMA (DIGUNAKAN UNTUK SEMUA HALAMAN)
